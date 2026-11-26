@@ -19,7 +19,7 @@ export function useSite() {
 }
 export function PageTitle({ title }: { title: string }) {
   useEffect(() => {
-    document.title = `${title} · RafalWebCraft`;
+    document.title = `${title} · ArtHQ`;
   }, [title]);
   return null;
 }
@@ -41,11 +41,11 @@ export function Shell({ children }: { children: ReactNode }) {
       </a>
       <header className="site-header">
         <div className="container header-inner">
-          <Link href="/" className="wordmark" aria-label="RafalWebCraft home">
+          <Link href="/" className="wordmark" aria-label="ArtHQ home">
             <span className="brand-mark">
-              r<span>.</span>
+              a<span>.</span>
             </span>
-            RafalWebCraft
+            ArtHQ
           </Link>
           <button
             className="icon-button mobile-menu"
@@ -102,12 +102,23 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="footer-bottom">
             <div>
               <Link href="/" className="wordmark">
-                RafalWebCraft
+                ArtHQ
               </Link>
               <p>
                 Custom digital work. A human approach.
                 <br />
                 Based in India. Building for you.
+              </p>
+              <p>
+                ArtHQ is a subsidiary of{" "}
+                <a
+                  href="https://rafalwebcraft.online"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  rafalwebcraft.online
+                </a>
+                .
               </p>
             </div>
             <div className="footer-links">
@@ -130,7 +141,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="footer-legal">
-            <span>© {new Date().getFullYear()} RafalWebCraft</span>
+            <span>© {new Date().getFullYear()} ArtHQ</span>
             <div>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>

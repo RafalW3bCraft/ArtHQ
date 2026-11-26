@@ -35,6 +35,10 @@ test("home communicates services and has no horizontal overflow", async ({
   await expect(
     page.getByRole("heading", { name: /Your next idea/ }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "ArtHQ home" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "rafalwebcraft.online" }),
+  ).toHaveAttribute("href", "https://rafalwebcraft.online");
   await expect(
     page.getByRole("button", { name: "Learn about Websites", exact: true }),
   ).toBeVisible();
@@ -464,7 +468,15 @@ test("compact chat opens in place, traps focus, retries once, and continues on t
   await page.screenshot({ path: testInfo.outputPath("chat-popup.png") });
   for (let i = 0; i < 10; i++) {
     await page.keyboard.press("Tab");
-    expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+    const activeElement = await page.evaluate(() => ({
+      tag: document.activeElement?.tagName,
+      label: document.activeElement?.getAttribute("aria-label"),
+      dialogOpen: document.querySelector("dialog")?.open,
+    }));
+    expect(
+      await dialog.evaluate((element) => element.contains(document.activeElement)),
+      `Focus escaped the chat dialog: ${JSON.stringify(activeElement)}`,
+    ).toBe(true);
   }
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
@@ -555,7 +567,7 @@ test("navigation works by click and mobile menu closes with Escape", async ({ pa
     if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
     await nav.getByRole("link", { name: label, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${url}$`));
-    await expect(nav.getByRole("link", { name: label, exact: true, includeHidden: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(`#main-navigation a[href="${url}"]`)).toHaveAttribute("aria-current", "page");
   }
   if (isMobile) {
     const menu = page.getByRole("button", { name: "Open navigation" });

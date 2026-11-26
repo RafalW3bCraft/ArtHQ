@@ -25,7 +25,13 @@
       { "source": "/admin/**", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }
     ],
     "rewrites": [
-      { "source": "/api/health", "destination": "/health.json" },
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "rafalwebcraft-api",
+          "region": "asia-south1"
+        }
+      },
       { "source": "**", "destination": "/index.html" }
     ]
   },

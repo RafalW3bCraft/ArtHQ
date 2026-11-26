@@ -4,7 +4,7 @@ import { send } from "@/lib/queryClient";
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 const welcome: ChatMessage = {
   role: "assistant",
-  content: "Hi, I’m Geraki, RafalWebCraft’s AI assistant. Tell me what you’d like to build, or what you’d like to make easier. We can figure out the next step together.",
+  content: "Hi, I’m Geraki, ArtHQ’s AI assistant. Tell me what you’d like to build, or what you’d like to make easier. We can figure out the next step together.",
 };
 
 function readConversation(): ChatMessage[] {

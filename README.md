@@ -1,7 +1,10 @@
-# RafalWebCraft
+# ArtHQ
 
-React/Vite frontend and Express API, with Firebase Authentication and Firestore.
-GitHub repository: https://github.com/RafalW3bCraft/RafalWebCraft (private).
+ArtHQ is a digital services studio and a subsidiary of
+[rafalwebcraft.online](https://rafalwebcraft.online). This repository contains
+its React/Vite frontend and Express API, with Firebase Authentication and
+Firestore.
+GitHub repository: https://github.com/RafalW3bCraft/ArtHQ (private).
 The current application uses `content` for articles, reports and projects. It does
 not use PostgreSQL or the repository polling jobs removed by the studio redesign.
 
@@ -15,7 +18,7 @@ pnpm install --frozen-lockfile
 cp env.example .env
 ```
 
-Fill in the Firebase web configuration from the `rafalwebcr4ft` project. The
+Fill in the Firebase web configuration from the `arthq-tech` project. The
 server and browser project IDs must match. For local server access, use **one**
 credential method:
 
@@ -66,7 +69,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm audit --audit-level=high
 pnpm verify:services --require-ai
-SITE_URL=https://rafalw3bcraft.web.app pnpm verify:services
+SITE_URL=https://arthq-tech.web.app pnpm verify:services
 ```
 
 The base service check verifies Firestore, Authentication, and required web
@@ -79,31 +82,33 @@ identity and application APIs. No standalone lint task is configured.
 
 ## Deployment
 
-The intended topology is Firebase Hosting site `rafalw3bcraft` in project
-`rafalwebcr4ft`, forwarding `/api/**` to Cloud Run service `rafalwebcraft-api` in
-`asia-south1`. The similarly named `rafalwebcr4ft` Hosting site is a separate site;
-do not delete or deploy to it just to resolve the naming difference.
+The configured Firebase project is `arthq-tech` (`.firebaserc`). Firebase
+Hosting serves `dist/public` at https://arthq-tech.web.app. The `/api/**`
+rewrite in `firebase.json` forwards requests to Cloud Run service
+`rafalwebcraft-api` in `asia-south1`; keep that service deployed in the same
+Firebase project. Its resource name is retained for compatibility with the
+existing server setup; the public-facing product name is ArtHQ.
 
 Before deploying, the operator needs permission to inspect/deploy Cloud Run,
-act as its runtime service identity, build/push its container, and deploy Hosting.
-Confirm billing and required Google Cloud services are enabled. The runtime
-identity needs Firestore access and Firebase Auth permissions, including token
-revocation checks. Supply `FIREBASE_PROJECT_ID=rafalwebcr4ft` and inject the AI key
-from Secret Manager. For payments, also configure the three Razorpay secrets and
-the webhook described in `env.example`.
+act as its runtime service identity, build/push its container, and deploy
+Hosting. Confirm billing and required Google Cloud services are enabled. The
+runtime identity needs Firestore access and Firebase Auth permissions, including
+token revocation checks. Set `FIREBASE_PROJECT_ID=arthq-tech` and inject the AI
+key from Secret Manager. For payments, also configure the three Razorpay secrets
+and the webhook described in `env.example`.
 
-Build/deploy the root Dockerfile to the stated Cloud Run service, listening on
-`PORT`, and verify `/health` and `/readiness`. Firebase Hosting's Cloud Run rewrite
-requires the service to be publicly invokable; application API authorization
-still applies. Build the frontend with its public `VITE_FIREBASE_*` settings, then
-deploy Hosting and Firestore rules/indexes:
+Deploy the root Dockerfile to the configured Cloud Run service, listening on
+`PORT`, and verify `/health`, `/api/health`, and `/readiness`. Firebase Hosting's
+Cloud Run rewrite requires the service to be publicly invokable; application API
+authorization still applies. Build the frontend with its public `VITE_FIREBASE_*`
+settings, then deploy Hosting and Firestore rules/indexes:
 
 ```sh
 pnpm build
-firebase deploy --project rafalwebcr4ft --only hosting,firestore:rules,firestore:indexes
-SITE_URL=https://rafalw3bcraft.web.app pnpm verify:services --require-ai
+firebase deploy --project arthq-tech --only hosting,firestore:rules,firestore:indexes
+SITE_URL=https://arthq-tech.web.app pnpm verify:services --require-ai
 ```
 
-Deploying Hosting alone does not deploy the Express server. Do not treat HTTP 200
-as API health if the response is HTML. Publishing content, approving business
-policies and enabling payments remain separate admin actions.
+Deploying Hosting alone does not deploy the Express server. Verify that API
+routes return JSON (not the frontend HTML) after deployment. Publishing content,
+approving business policies and enabling payments remain separate admin actions.

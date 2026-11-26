@@ -432,7 +432,7 @@ export function Blog() {
           title="A little insight goes a long way."
         >
           <p>
-            Practical ideas, project updates, and reports from RafalWebCraft.
+            Practical ideas, project updates, and reports from ArtHQ.
           </p>
         </Intro>
         <label className="blog-search">
@@ -770,7 +770,7 @@ export function Policies({ kind }: { kind: "privacy" | "terms" | "refunds" }) {
         }
       />
       <section className="container section reading-page">
-        <Intro eyebrow="RAFALWEBCRAFT · INDIA" title={title} />
+        <Intro eyebrow="ARTHQ · INDIA" title={title} />
         <div className="prose">
           {kind === "privacy" ? (
             <>
@@ -816,9 +816,11 @@ export function Policies({ kind }: { kind: "privacy" | "terms" | "refunds" }) {
             <>
               <h2>Who we are</h2>
               <p>
-                RafalWebCraft is a custom digital services business based in
-                India. We build websites, applications, bots, scripts, and AI
-                tools, and offer AI training and support.
+                ArtHQ is a digital services studio based in India and a
+                subsidiary of{" "}
+                <a href="https://rafalwebcraft.online">RafalWebCraft</a>. We
+                build websites, applications, bots, scripts, and AI tools, and
+                offer AI training and support.
               </p>
               <h2>Project agreement</h2>
               <p>
@@ -877,7 +879,7 @@ export function Policies({ kind }: { kind: "privacy" | "terms" | "refunds" }) {
                 <p className="preserve-lines">{data.refundPolicy}</p>
               ) : (
                 <p>
-                  Online booking remains closed until RafalWebCraft publishes
+                  Online booking remains closed until ArtHQ publishes
                   its cancellation and refund terms. Contact the team to discuss
                   your project; no payment is required to enquire.
                 </p>
@@ -894,7 +896,7 @@ export function Policies({ kind }: { kind: "privacy" | "terms" | "refunds" }) {
           )}
           <h2>Contact</h2>
           <p>
-            RafalWebCraft, India
+            ArtHQ, India
             {data?.businessAddress ? ` · ${data.businessAddress}` : ""}
           </p>
           <a

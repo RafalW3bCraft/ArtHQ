@@ -112,7 +112,9 @@ export function createApplication(dependencies: Dependencies = {}) {
       },
     }),
   );
-  app.get("/health", (_req, res) => res.json({ status: "ok" }));
+  app.get(["/health", "/api/health"], (_req, res) =>
+    res.json({ status: "ok" }),
+  );
   app.get("/readiness", async (_req, res) => {
     try {
       await store.get("business_settings", "public");
@@ -692,7 +694,7 @@ export function createApplication(dependencies: Dependencies = {}) {
         title: post.title,
         slug: post.slug,
         kind: "article",
-        excerpt: post.excerpt || "An article from RafalWebCraft.",
+        excerpt: post.excerpt || "An article from ArtHQ.",
         body: post.content || post.body,
         published: false,
         featured: false,

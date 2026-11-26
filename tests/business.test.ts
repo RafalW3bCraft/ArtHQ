@@ -167,6 +167,12 @@ async function paidBooking() {
 }
 
 describe("Business API access and publishing", () => {
+  it("serves the health check at the Firebase Hosting API rewrite path", async () => {
+    const response = await request(app).get("/api/health");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: "ok" });
+  });
+
   it("continues legacy imports past the first page", async () => {
     for (let i = 0; i < 101; i++) {
       const id = String(i).padStart(3, "0");

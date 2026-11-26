@@ -9,7 +9,7 @@ if (process.env.NODE_ENV === "production") serveStatic(app);
 else await setupVite(app, server);
 const port = Number(process.env.PORT || 5000);
 server.listen(port, "0.0.0.0", () =>
-  console.log(`RafalWebCraft listening on port ${port}`),
+  console.log(`ArtHQ listening on port ${port}`),
 );
 for (const signal of ["SIGTERM", "SIGINT"])
   process.on(signal, () => {

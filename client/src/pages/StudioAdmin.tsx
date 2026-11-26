@@ -150,7 +150,7 @@ export default function StudioAdmin() {
       <PageTitle title="Studio admin" />
       <section className="container section admin-page">
         <div className="section-heading">
-          <Intro eyebrow="RAFALWEBCRAFT" title="Your studio, at a glance." />
+          <Intro eyebrow="ARTHQ" title="Your studio, at a glance." />
           <button className="text-link" onClick={() => void logout()}>
             <LogOut size={16} />
             Sign out

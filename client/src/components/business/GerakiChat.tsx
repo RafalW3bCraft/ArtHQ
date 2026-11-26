@@ -25,7 +25,7 @@ export function GerakiChat({ close }: { close?: () => void }) {
           <button className="icon-button" aria-label="Close chat" onClick={close}><X size={20} /></button>
         </>}
       </div>
-      <div ref={transcript} className="assistant-messages" role="log" aria-live="polite" aria-label="Conversation with Geraki" aria-busy={busy}>
+      <div ref={transcript} className="assistant-messages" role="log" aria-live="polite" aria-label="Conversation with Geraki" aria-busy={busy} tabIndex={0}>
         {messages.map((m, i) => <div key={i} className={`assistant-message ${m.role}`}>
           <span>{m.role === "user" ? "You" : "Geraki"}</span>
           <div className="prose"><ReactMarkdown>{m.content}</ReactMarkdown></div>
@@ -67,9 +67,35 @@ export function GerakiPopup({ close }: { close: () => void }) {
       queueMicrotask(() => { if (opener?.isConnected) opener.focus(); });
     };
   }, []);
-  return <dialog ref={ref} className="chat-popup" aria-label="Chat with Geraki"
-    onCancel={(e) => { e.preventDefault(); close(); }}
-    onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
+  return <dialog
+    ref={ref}
+    className="chat-popup"
+    aria-label="Chat with Geraki"
+    onCancel={(event) => {
+      event.preventDefault();
+      close();
+    }}
+    onClick={(event) => {
+      if (event.target === event.currentTarget) close();
+    }}
+    onKeyDown={(event) => {
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        ref.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) || [],
+      ).filter((element) => element.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }}
+  >
     <GerakiChat close={close} />
   </dialog>;
 }

@@ -320,7 +320,7 @@ export function Orders() {
         amount: payment.amount,
         currency: payment.currency,
         order_id: payment.orderId,
-        name: "RafalWebCraft",
+        name: "ArtHQ",
         description: `${stage === "booking" ? "Project booking" : stage + " milestone"} · ${order.packageName}`,
         prefill: { name: order.brief.name, email: user?.email },
         theme: { color: "#5846c8" },
@@ -562,7 +562,7 @@ export function Login() {
     <section className="container section auth-page">
       <PageTitle title="Sign in" />
       <div className="auth-card">
-        <span className="eyebrow">WELCOME TO RAFALWEBCRAFT</span>
+        <span className="eyebrow">WELCOME TO ARTHQ</span>
         <h1>
           {mode === "register"
             ? "Let’s get acquainted."

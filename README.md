@@ -89,6 +89,9 @@ rewrite in `firebase.json` forwards requests to Cloud Run service
 Firebase project. Its resource name is retained for compatibility with the
 existing server setup; the public-facing product name is ArtHQ.
 
+Authenticate with Firebase CLI (`firebase login`) and Google Cloud
+(`gcloud auth login`) before deploying.
+
 Before deploying, the operator needs permission to inspect/deploy Cloud Run,
 act as its runtime service identity, build/push its container, and deploy
 Hosting. Confirm billing and required Google Cloud services are enabled. The

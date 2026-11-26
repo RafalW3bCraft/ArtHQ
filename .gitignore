@@ -1,13 +1,46 @@
-node_modules
-dist
-.DS_Store
-server/public
-.agents/
-3D-Skeleton-main/
-vite.config.ts.*
-*.tar.gz
-.env
-.env.*
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env*
 !.env.example
+
+# IDE and editor files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage and Test Reports
+coverage/
+playwright-report/
+test-results/
+
+# Temporary files
+*.tar.gz
+vite.config.ts.*
+server/public
+.pnpm-debug.log*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Database backups
+backups/*
+!backups/.gitkeep
+
+# Firebase CLI cache
 .firebase/
-*-debug.log
+
+# Local Firebase / Google service-account credentials
+service-account*.json
+*-firebase-adminsdk-*.json

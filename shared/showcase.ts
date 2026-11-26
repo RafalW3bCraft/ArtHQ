@@ -1,0 +1,58 @@
+import type { Content } from "./business";
+
+// Descriptions checked against public GitHub metadata on 2026-11-19.
+// Concept illustrations are explicitly labelled in the UI; no invented live URLs or metrics.
+export const showcase: Content[] = [
+  {
+    id: "sofer",
+    slug: "sofer",
+    title: "A little help. A new language.",
+    category: "AI application",
+    kind: "project",
+    excerpt:
+      "Arabic learning with interactive sentences, explanations, quizzes and saved progress.",
+    body: "Sofer is an Arabic learning project with interactive sentences, grammar explanations, quizzes and saved progress. Explore the public repository, or talk to us about an education tool for your audience.",
+    sourceUrl: "https://github.com/RafalW3bCraft/sofer",
+    liveUrl: "",
+    imageUrl: "",
+    published: true,
+    featured: true,
+    order: 0,
+    createdAt: "",
+    updatedAt: "",
+  },
+  {
+    id: "dealpilot-ai",
+    slug: "dealpilot-ai",
+    title: "Less busywork. More possibility.",
+    category: "Bot & automation",
+    kind: "project",
+    excerpt: "A Telegram bot for managing Amazon affiliate tasks.",
+    body: "DealPilotAI, formerly AmazonAffiliatedBot, is a public Telegram bot for managing Amazon affiliate tasks. We can discuss a bot tailored to your business.",
+    sourceUrl: "https://github.com/RafalW3bCraft/DealPilotAI",
+    liveUrl: "",
+    imageUrl: "",
+    published: true,
+    featured: true,
+    order: 1,
+    createdAt: "",
+    updatedAt: "",
+  },
+  {
+    id: "amd-ai-league",
+    slug: "amd-ai-league",
+    title: "AI systems, explored.",
+    category: "Custom AI",
+    kind: "project",
+    excerpt: "AI systems and challenge solutions for AMD AI League.",
+    body: "AMD-AI-LEAGUE contains AI systems and challenge solutions for AMD AI League. The former Citation-RAG repository address now redirects here. Review the current source for its scope and implementation.",
+    sourceUrl: "https://github.com/RafalW3bCraft/AMD-AI-LEAGUE",
+    liveUrl: "",
+    imageUrl: "",
+    published: true,
+    featured: true,
+    order: 2,
+    createdAt: "",
+    updatedAt: "",
+  },
+];

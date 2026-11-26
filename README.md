@@ -1,88 +1,109 @@
-# ArtHQ
+# RafalWebCraft
 
-ArtHQ is a subsidiary of RafalW3bCraft. Its English-language Hall of Achievement presents six selected website and digital projects from RafalW3bCraft, 4AM SOCIETY, Ribison Chemicals, Creative Laser Art, FinServiceBot, and Smart Growly Bot. Clients can submit project briefs, track status, and request support. Staff can process projects, tickets, and contact enquiries.
+React/Vite frontend and Express API, with Firebase Authentication and Firestore.
+GitHub repository: https://github.com/RafalW3bCraft/RafalWebCraft (private).
+The current application uses `content` for articles, reports and projects. It does
+not use PostgreSQL or the repository polling jobs removed by the studio redesign.
 
-Support: [support@arthq.tech](mailto:support@arthq.tech) · [info@rafalwebcraft.online](mailto:info@rafalwebcraft.online). Project documentation index: [docs/](docs/README.md); business and service structure: [PRODUCT_AND_SERVICES.md](docs/PRODUCT_AND_SERVICES.md); application architecture: [ARCHITECTURE.md](docs/ARCHITECTURE.md); visual rules: [DESIGN.md](docs/DESIGN.md); maintenance audit: [MAINTENANCE_AUDIT.md](docs/MAINTENANCE_AUDIT.md); search audit: [SEO_AUDIT.md](docs/SEO_AUDIT.md); release checks: [QA_REPORT.md](docs/QA_REPORT.md).
+## Local setup
 
-## Run locally
-
-Use Node 24.12 or newer. The repository includes a Node version file for compatible version managers.
-
-```sh
-npm ci
-npm run dev
-```
-
-The public portfolio works without backend settings. It presents six projects in an auto-advancing horizontal carousel, ArtHQ’s website/app services, and a project workflow. The carousel pauses on hover, keyboard focus, and manual interaction and stops autoplay for reduced motion. For a connected portal, copy `.env.example` to `.env.local` and fill in the three Firebase **web app** settings. Vite embeds these public settings at build time. Keep account credentials and service account keys outside the repository.
+Use Node 22 (`nvm use`) and the pinned pnpm version:
 
 ```sh
-npm run build
-npm start
+corepack enable
+pnpm install --frozen-lockfile
+cp env.example .env
 ```
 
-The static output is in `dist/public`. The intended custom address is `https://arthq.tech/`; until Get.tech DNS verification completes, the live Firebase address is `https://arthq-tech.web.app/`. The supported application routes are `/`, `/auth`, `/dashboard`, and `/admin`. The static health endpoint at `/api/health` returns the service name and deployment status. Portal access and form submission depend on Firebase.
+Fill in the Firebase web configuration from the `rafalwebcr4ft` project. The
+server and browser project IDs must match. For local server access, use **one**
+credential method:
 
-## Configure a fresh Firebase backend
+* `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json` for a downloaded key file.
+* `FIREBASE_SERVICE_ACCOUNT_KEY` for JSON or base64 JSON, never a file path.
+* Application Default Credentials from `gcloud auth application-default login`.
 
-1. Sign in with `firebase login`. The fresh Firebase project uses display name **ArtHQ** and project ID `arthq-tech` (`firebase projects:create arthq-tech --display-name ArtHQ`). The shorter ID `arthq` is invalid because Google Cloud requires project IDs to be at least six characters long.
-2. Confirm the default Hosting site exists with `firebase hosting:sites:list --project arthq-tech`; if it does not, create it with `firebase hosting:sites:create arthq-tech --project arthq-tech`. Register a web application named **ArtHQ** after the Hosting site exists and use its API key, project ID, and app ID for the three variables in `.env.example`.
-3. Email/Password sign-in is configured as code in `firebase.json` and deployed by `npm run deploy:firebase`. Add `arthq.tech` to Authentication's authorized domains after connecting the custom domain.
-4. Create the default **Cloud Firestore Standard** database in **Belgium** (`europe-west1`), in production mode. This database location cannot be changed after creation.
-5. Deploy the rules and indexes and wait for the indexes to finish building.
+Keep credentials out of Git and Docker images. Cloud Run should use its attached
+service identity instead of a downloaded private key. See the
+[Firebase Admin setup guide](https://firebase.google.com/docs/admin/setup).
 
 ```sh
-firebase deploy --only auth,firestore:rules,firestore:indexes --project arthq-tech
+pnpm verify:services
+pnpm dev
 ```
 
-6. Register the intended admin account and have a trusted Firebase project operator assign its `role: admin` in Firestore. See [admin setup](docs/ADMIN_SETUP.md) and [Firestore access](docs/FIRESTORE_SECURITY_RULES.md).
-7. Keep the fresh backend separate from earlier projects. The former tracked environment file contained an admin password and a session secret. Rotate any values still in use through their owning services. Removing a file from the current revision leaves previous public commits accessible.
+The site runs at http://localhost:5000. Firebase console access and GitHub access
+are separate from the application's server credentials. Connecting an assistant
+plugin does not supply credentials to the deployed application.
 
-## Preview and deploy with Firebase Hosting
+## Blog workflow
 
-Copy `.env.example` to `.env.local` and enter the Firebase web app settings. These public client settings are embedded in the build; never put service account credentials in a Vite variable. The `.firebaserc` default and deploy scripts target project `arthq-tech`.
+Sign in with a Firebase user that has the `admin` custom claim. An authorized
+operator can grant this with `pnpm admin:set FIREBASE_USER_UID`.
 
-Create a temporary Firebase Hosting preview and verify it before production deployment:
+In **Admin → Content**:
+
+1. Write an article with **New content**, or use **Import existing articles as drafts**
+   to recover records from the old Firestore `blog_posts` collection.
+2. The importer preserves original records, prevents duplicate page addresses,
+   and reports imported, already imported and skipped records. Correct invalid
+   fields or conflicting addresses before retrying. Each page contains up to 100
+   records; select **Continue article import** until the final page is processed.
+3. Review the body, source links, title and page address. Set **Publish on website**
+   and save to make the article appear at `/blog` and `/blog/:slug`.
+
+The importer cannot recover deleted records or a separate SQL database. Automatic
+GitHub-to-blog generation remains removed, as requested. Featherless is used by
+Geraki, with models pinned in `shared/business.ts`.
+
+## Verification
 
 ```sh
-npm run preview:firebase
+pnpm build
+pnpm check
+pnpm test:run
+pnpm exec playwright install chromium
+pnpm test:e2e
+pnpm audit --audit-level=high
+pnpm verify:services --require-ai
+SITE_URL=https://rafalw3bcraft.web.app pnpm verify:services
 ```
 
-Test sign-up, brief submission, client status visibility, support ticket submission, admin updates, and manual email reply links with dedicated release accounts. Confirm all six portfolio destinations and their images load. Deploy Hosting and Firestore rules/indexes together only after the preview and workflow are verified:
+The base service check verifies Firestore, Authentication, and required web
+configuration. `--probe-ai` / `--require-ai` make real model requests and fail if
+neither model replies. `--require-payments` additionally requires all three
+Razorpay settings; it does not verify payment capture. `SITE_URL` checks that the
+deployed API returns successful JSON, detecting frontend HTML served at API URLs.
+Failures exit nonzero. Unit/API tests mock external services; browser tests mock
+identity and application APIs. No standalone lint task is configured.
+
+## Deployment
+
+The intended topology is Firebase Hosting site `rafalw3bcraft` in project
+`rafalwebcr4ft`, forwarding `/api/**` to Cloud Run service `rafalwebcraft-api` in
+`asia-south1`. The similarly named `rafalwebcr4ft` Hosting site is a separate site;
+do not delete or deploy to it just to resolve the naming difference.
+
+Before deploying, the operator needs permission to inspect/deploy Cloud Run,
+act as its runtime service identity, build/push its container, and deploy Hosting.
+Confirm billing and required Google Cloud services are enabled. The runtime
+identity needs Firestore access and Firebase Auth permissions, including token
+revocation checks. Supply `FIREBASE_PROJECT_ID=rafalwebcr4ft` and inject the AI key
+from Secret Manager. For payments, also configure the three Razorpay secrets and
+the webhook described in `env.example`.
+
+Build/deploy the root Dockerfile to the stated Cloud Run service, listening on
+`PORT`, and verify `/health` and `/readiness`. Firebase Hosting's Cloud Run rewrite
+requires the service to be publicly invokable; application API authorization
+still applies. Build the frontend with its public `VITE_FIREBASE_*` settings, then
+deploy Hosting and Firestore rules/indexes:
 
 ```sh
-npm run deploy:firebase
+pnpm build
+firebase deploy --project rafalwebcr4ft --only hosting,firestore:rules,firestore:indexes
+SITE_URL=https://rafalw3bcraft.web.app pnpm verify:services --require-ai
 ```
 
-The Firebase Hosting default address is live. The custom domain has not yet been verified or activated in Hosting, and DNS did not resolve during the release check. Follow the [launch runbook](docs/LAUNCH_RUNBOOK.md) to add the current Firebase-provided records at Get.tech; preserve existing email-related DNS records. After Firebase reports the domain connected and TLS is active, check HTTPS at `https://arthq.tech`, the `www` redirect, `/api/health`, direct portal-route refreshes, all portfolio links, and the signed-in client-to-admin workflow. [Firebase Hosting custom domains](https://firebase.google.com/docs/hosting/custom-domain) · [Get.tech DNS management](https://cp.get.tech/kb/node/636)
-
-## Verify changes
-
-Run `npm run check`, `npm run build`, and `npm audit --omit=dev`. The production dependency override selects a patched gRPC transport for Firebase's Node dependency. Browser application data access uses the Firebase web SDK.
-
-Start Firebase CLI 15 emulators with Java 21 or newer in a separate terminal.
-
-```sh
-firebase emulators:start --only auth,firestore --project demo-arthq
-```
-
-With the emulators running, run the rules tests first. They clear only the local demo database. The browser test builds into a temporary directory, uses isolated sessions for two clients and an admin, and creates fresh local test accounts.
-
-```sh
-npm run test:rules
-CHROMIUM_BIN=/path/to/chromium npm run test:browser
-```
-
-For manual portal testing with the same emulators, pass local-only web settings when starting Vite.
-
-```sh
-VITE_USE_EMULATORS=true VITE_FIREBASE_PROJECT_ID=demo-arthq \
-VITE_FIREBASE_API_KEY=demo-arthq-key VITE_FIREBASE_APP_ID=1:123:web:abc npm run dev
-```
-
-Open the local URL on `localhost` or `127.0.0.1`. Emulator connections are restricted to loopback and a demo project identifier.
-
-## Project tooling and media
-
-ECC 2.2.3 is installed in `.agents` using the project-local full profile. Its installation receipt records the supported modules. The reviewed source commit is `90606c8315ee09cafc303515c5f33024db6b9882`. The tooling stays outside the static publish directory. [ECC source](https://github.com/affaan-m/ECC/tree/90606c8315ee09cafc303515c5f33024db6b9882)
-
-Portfolio screenshots and the social card live in `client/public/media`. Fonts and their licenses are included in `client/public/fonts`. Client testimonials are only published when the client attribution, exact quote, and permission to publish are confirmed.
+Deploying Hosting alone does not deploy the Express server. Do not treat HTTP 200
+as API health if the response is HTML. Publishing content, approving business
+policies and enabling payments remain separate admin actions.

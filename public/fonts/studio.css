@@ -1,0 +1,2 @@
+/* Locally hosted type keeps page visits independent of third-party font services. */
+@font-face{font-family:'Studio Sans';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/dm-sans-latin.woff2') format('woff2')}

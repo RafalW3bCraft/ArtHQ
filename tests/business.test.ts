@@ -170,7 +170,7 @@ describe("Business API access and publishing", () => {
   it("serves the health check at the Firebase Hosting API rewrite path", async () => {
     const response = await request(app).get("/api/health");
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: "ok" });
+    expect(response.body).toMatchObject({ status: "ok", revision: expect.any(String) });
   });
 
   it("continues legacy imports past the first page", async () => {

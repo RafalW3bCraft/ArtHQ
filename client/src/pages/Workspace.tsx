@@ -20,7 +20,7 @@ import {
   sendEmailVerification,
   updateProfile,
 } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { auth, googleProvider, googleSignInEnabled } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { api, send, queryClient } from "@/lib/queryClient";
 import { Intro, Notice, PageTitle, useSite } from "@/components/business/Shell";
@@ -29,7 +29,8 @@ import {
   services,
   type ProjectOrder,
   type PaymentStage,
-} from "@shared/business";
+} from "@shared/catalog";
+import { usePaged } from "@/hooks/usePaged";
 import { useGeraki } from "@/hooks/useGeraki";
 import { GerakiChat } from "@/components/business/GerakiChat";
 export function Start() {
@@ -40,9 +41,9 @@ export function Start() {
   const [error, setError] = useState("");
   const [booking, setBooking] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [serviceId, setServiceId] = useState(
+  const [serviceId, setServiceId] = useState<string>(
     () =>
-      new URLSearchParams(window.location.search).get("service") || "websites",
+      services.find(s => s.id === new URLSearchParams(window.location.search).get("service"))?.id || "websites",
   );
   async function submitBrief(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -185,7 +186,7 @@ export function Start() {
                 </label>
                 <label>
                   Package discussed with Geraki
-                  <select name="packageId" required defaultValue="">
+                  <select key={serviceId} name="packageId" required defaultValue="">
                     <option value="" disabled>
                       Choose a package
                     </option>
@@ -295,15 +296,9 @@ function loadCheckout() {
 }
 export function Orders() {
   const { user, loading, logout } = useAuth();
-  const {
-    data: orders = [],
-    error,
-    isPending,
-  } = useQuery<ProjectOrder[]>({
-    queryKey: ["/api/orders", user?.uid],
-    enabled: !!user,
-    refetchInterval: 15000,
-  });
+  const ordersQuery = usePaged<ProjectOrder>("/api/orders", !!user, 15000);
+  const { error, isPending } = ordersQuery;
+  const orders = ordersQuery.items;
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   async function pay(order: ProjectOrder, stage: PaymentStage) {
@@ -393,6 +388,7 @@ export function Orders() {
         {notice && <Notice>{notice}</Notice>}
         {error && <Notice error>{error.message}</Notice>}
         {isPending && <Notice>Loading your projects…</Notice>}
+        {ordersQuery.hasNextPage && <button className="button outline" disabled={ordersQuery.isFetching} onClick={() => void ordersQuery.fetchNextPage()}>Load more projects</button>}
         {!isPending && !orders.length && (
           <div className="empty-state">
             <Sparkles />
@@ -631,7 +627,7 @@ export function Login() {
                 <ArrowRight size={17} />
               </button>
             </form>
-            {mode !== "reset" && (
+            {mode !== "reset" && googleSignInEnabled && (
               <button
                 className="button outline full-width"
                 disabled={busy}
@@ -666,14 +662,9 @@ export function Login() {
 export function Discussion({ context }: { context: string }) {
   const { user } = useAuth();
   const { data: site } = useSite();
-  const { data: messages = [], error } = useQuery<any[]>({
-    queryKey: [
-      `/api/messages?context=${encodeURIComponent(context)}`,
-      user?.uid,
-    ],
-    refetchInterval: 12000,
-    enabled: context !== "community" || site?.communityEnabled === true,
-  });
+  const messagesQuery = usePaged<any>(`/api/messages?context=${encodeURIComponent(context)}`, context !== "community" || site?.communityEnabled === true, 12000);
+  const { error } = messagesQuery;
+  const messages = [...messagesQuery.items].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   const [value, setValue] = useState("");
   const [askGeraki, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -719,8 +710,10 @@ export function Discussion({ context }: { context: string }) {
         out of your messages.
       </p>
       {error && <Notice error>{error.message}</Notice>}
+      {messagesQuery.isPending && <Notice>Loading conversation…</Notice>}
+      {messagesQuery.hasNextPage && <button className="button outline small" disabled={messagesQuery.isFetching} onClick={() => void messagesQuery.fetchNextPage()}>Load older messages</button>}
       <div className="message-list">
-        {messages.length === 0 && !error && (
+        {messages.length === 0 && !error && !messagesQuery.isPending && (
           <p className="muted">
             Start a conversation. Ask a question or share an idea.
           </p>

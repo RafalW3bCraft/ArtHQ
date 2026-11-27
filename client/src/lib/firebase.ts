@@ -15,5 +15,8 @@ export const auth =
     ? getAuth(initializeApp(config))
     : null;
 export const googleProvider = new GoogleAuthProvider();
+// Enable only after the Google provider and OAuth web client are configured in
+// this Firebase project. Email/password works independently.
+export const googleSignInEnabled = import.meta.env.VITE_FIREBASE_GOOGLE_ENABLED === "true";
 if (auth && import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true")
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });

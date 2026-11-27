@@ -54,7 +54,7 @@ export const send = <T = any>(url: string, data: unknown, method = "POST") =>
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: ({ queryKey }) => api(String(queryKey[0])),
+      queryFn: ({ queryKey, signal }) => api(String(queryKey[0]), { signal }),
       staleTime: 30000,
       retry: 1,
       refetchOnWindowFocus: false,

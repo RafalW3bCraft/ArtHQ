@@ -10,3 +10,8 @@ coverage
 test-results
 playwright-report
 *.md
+.firebase
+.github
+.vscode
+*.log
+backups

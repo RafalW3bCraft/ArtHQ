@@ -1,11 +1,41 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { askGeraki, gerakiInstructions } from "../server/geraki";
 import { defaultSettings, models } from "../shared/business";
+import { generateArticle } from "../server/generation";
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 describe("Featherless-only routing", () => {
+  it.each(["truncated", "invalid JSON", "invalid fields", "unsafe markup"])(
+    "tries the other approved model when an article reply has %s",
+    async (failure) => {
+      vi.stubEnv("FEATHERLESS_API_KEY", "private-test-key");
+      const draft = {
+        title: "Website planning", excerpt: "A practical guide.",
+        body: "Start with one customer task.", category: "Websites",
+      };
+      const content = failure === "invalid JSON" ? "not JSON"
+        : failure === "invalid fields" ? JSON.stringify({ title: "Incomplete" })
+        : failure === "unsafe markup" ? JSON.stringify({ ...draft, body: "<script>unsafe</script>" })
+        : JSON.stringify(draft);
+      const fetcher = vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{
+          finish_reason: failure === "truncated" ? "length" : "stop", message: { content },
+        }] })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{
+          finish_reason: "stop", message: { content: JSON.stringify(draft) },
+        }] })));
+      vi.stubGlobal("fetch", fetcher);
+      const reply = await generateArticle({
+        id: "topic", title: "Planning", brief: "Help business owners.",
+        reference: "", sourceUrl: "", createdAt: new Date().toISOString(),
+      }, "topic");
+      expect(reply.model).toBe(models.secondary);
+      expect(JSON.parse(reply.content)).toEqual(draft);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    },
+  );
   it("uses MiniMax M3 for private questions and Kimi K3 for public replies", async () => {
     vi.stubEnv("FEATHERLESS_API_KEY", "private-test-key");
     const fetcher = vi.fn(

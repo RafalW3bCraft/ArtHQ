@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+node_modules
+dist
+.agents
+.firebase
+.github
+.vscode
+service-account*.json
+*-firebase-adminsdk-*.json
+*.log
+backups
+test-results
+playwright-report
+coverage

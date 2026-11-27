@@ -2520,3 +2520,9 @@ textarea {
 }
 .blog-search { display: flex; align-items: center; gap: 12px; max-width: 480px; padding: 0 16px; margin-bottom: 24px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
 .blog-search input { width: 100%; min-width: 0; padding: 16px 0; border: 0; background: transparent; color: var(--ink); font-size: 16px; }
+
+.generation-admin { margin-block: 2rem; }
+.generation-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.generation-row > div { min-width: 0; }
+.generation-row p { max-width: 65ch; white-space: pre-wrap; }
+.content-preview { padding-block: 1rem; overflow-wrap: anywhere; }

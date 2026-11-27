@@ -16,7 +16,7 @@ import {
   Search,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { services, money, type Content } from "@shared/business";
+import { services, money, type Content } from "@shared/catalog";
 import {
   CTA,
   Intro,

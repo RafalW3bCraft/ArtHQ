@@ -41,7 +41,8 @@ it("allows the existing article to retain its own slug", async () => {
     id: "article",
     slug: "shared-slug",
   });
-  expect(transaction.set).toHaveBeenCalledOnce();
+  expect(transaction.set).toHaveBeenCalledTimes(2);
+  expect(transaction.set).toHaveBeenCalledWith(expect.anything(), { ownerId: "article", slug: "shared-slug" });
 });
 
 it("returns content after the first 500 records without dropping the filter", async () => {

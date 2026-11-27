@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import { Generation } from "@/components/business/Generation";
 import {
   Plus,
   Save,
@@ -23,7 +25,7 @@ import {
   type ServicePackage,
   type BusinessSettings,
   type ProjectOrder,
-} from "@shared/business";
+} from "@shared/catalog";
 type Overview = {
   settings: BusinessSettings;
   content: Content[];
@@ -32,6 +34,8 @@ type Overview = {
   messages: any[];
   reports: any[];
   readiness: Record<string, boolean>;
+  nextCursors?: Record<string, string | null>;
+  counts?: { orders: number; inquiries: number; content: number; reports: number };
 };
 const blankContent = {
   title: "",
@@ -51,6 +55,7 @@ export default function StudioAdmin() {
   const { user, isAdmin, loading, logout } = useAuth();
   const { data, error, isPending } = useQuery<Overview>({
     queryKey: ["/api/admin/overview", user?.uid],
+    queryFn: ({ signal }) => api("/api/admin/overview", { signal, headers: { "X-List-Pagination": "cursor" } }),
     enabled: isAdmin,
   });
   const [tab, setTab] = useState("Overview");
@@ -59,6 +64,7 @@ export default function StudioAdmin() {
   const [failed, setFailed] = useState(false);
   const [settings, setSettings] = useState<BusinessSettings>(defaultSettings);
   const [editor, setEditor] = useState<any>(null);
+  const [preview, setPreview] = useState(false);
   const [legacyCursor, setLegacyCursor] = useState<string | null>(null);
   const [packageEditor, setPackageEditor] = useState<ServicePackage | null>(
     null,
@@ -77,6 +83,7 @@ export default function StudioAdmin() {
   async function action(
     fn: () => Promise<unknown>,
     success: string | ((result: any) => string) = "Saved.",
+    invalidate = true,
   ) {
     setBusy(true);
     setFailed(false);
@@ -84,7 +91,7 @@ export default function StudioAdmin() {
     try {
       const result = await fn();
       setStatus(typeof success === "function" ? success(result) : success);
-      await queryClient.invalidateQueries();
+      if (invalidate) await queryClient.invalidateQueries();
     } catch (e) {
       setFailed(true);
       setStatus((e as Error).message);
@@ -103,6 +110,18 @@ export default function StudioAdmin() {
       );
       setEditor(null);
     });
+  }
+  async function loadMore(collection: string) {
+    const cursor = data?.nextCursors?.[collection];
+    if (!cursor) return;
+    await action(async () => {
+      const page = await api<{ items: any[]; nextCursor: string | null }>(`/api/admin/collections/${collection}?cursor=${encodeURIComponent(cursor)}`);
+      queryClient.setQueryData<Overview>(["/api/admin/overview", user?.uid], previous => previous ? {
+        ...previous,
+        [collection]: [...(previous[collection as keyof Overview] as any[]), ...page.items].filter((item, index, all) => all.findIndex(other => other.id === item.id) === index),
+        nextCursors: { ...previous.nextCursors, [collection]: page.nextCursor },
+      } : previous);
+    }, "More records loaded.", false);
   }
   async function savePackage(e: FormEvent) {
     e.preventDefault();
@@ -165,6 +184,7 @@ export default function StudioAdmin() {
             "Overview",
             "Content",
             "Packages",
+            "Generation",
             "Orders",
             "Inbox",
             "Community",
@@ -191,18 +211,18 @@ export default function StudioAdmin() {
           <>
             <div className="admin-stats">
               {[
-                ["Project orders", data.orders.length],
+                ["Project orders", data.counts?.orders ?? data.orders.length],
                 [
                   "New enquiries",
-                  data.inquiries.filter((i) => i.status === "new").length,
+                  data.counts?.inquiries ?? data.inquiries.filter((i) => i.status === "new").length,
                 ],
                 [
                   "Published pages",
-                  data.content.filter((c) => c.published).length,
+                  data.counts?.content ?? data.content.filter((c) => c.published).length,
                 ],
                 [
                   "Community reports",
-                  data.reports.filter((r) => r.status === "open").length,
+                  data.counts?.reports ?? data.reports.filter((r) => r.status === "open").length,
                 ],
               ].map(([label, n]) => (
                 <div key={label}>
@@ -235,6 +255,14 @@ export default function StudioAdmin() {
               </p>
             </div>
           </>
+        )}
+        {data && tab === "Generation" && <Generation edit={(id) => void action(async () => {
+          const content = await api<Content>(`/api/admin/content/${id}`);
+          setPreview(false); setEditor(content);
+        }, "Draft opened for review.", false)} />}
+        {data && ["Content", "Orders", "Inbox", "Community"].includes(tab) && (
+          <div className="inline-actions">{(tab === "Content" ? ["content"] : tab === "Orders" ? ["orders"] : tab === "Inbox" ? ["inquiries"] : ["messages", "reports"]).map(collection => data.nextCursors?.[collection] ?
+            <button className="button outline small" key={collection} disabled={busy} onClick={() => void loadMore(collection)}>Load more {collection}</button> : null)}</div>
         )}
         {data && tab === "Content" && (
           <>
@@ -814,6 +842,8 @@ export default function StudioAdmin() {
             title={editor.id ? "Edit content" : "Create content"}
             close={() => setEditor(null)}
           >
+            <button type="button" className="button outline small" onClick={() => setPreview(!preview)}>{preview ? "Hide preview" : "Preview content"}</button>
+            {preview && <article className="content-preview prose"><h2>{editor.title}</h2><p>{editor.excerpt}</p><ReactMarkdown>{editor.body}</ReactMarkdown></article>}
             <form className="form-stack" onSubmit={saveContent}>
               <label>
                 Content type

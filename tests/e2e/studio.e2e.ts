@@ -637,3 +637,35 @@ test("contact failure keeps the draft and can be retried", async ({ page }) => {
   await page.getByRole("button", { name: "Send your message" }).click();
   await expect(page.getByRole("status")).toContainText("Your message is with the team");
 });
+
+test("admin generates a topic draft, previews it, and keeps it unpublished", async ({ page }) => {
+  const topic = { id: "topic-test", title: "Planning a business website", brief: "A practical guide", reference: "", sourceUrl: "", createdAt: "2026-11-27T00:00:00Z" };
+  const draft = { id: "generated-test", title: topic.title, slug: "planning-a-website", kind: "article", category: "Websites", excerpt: "Plan around your business goals.", body: "## Start with a goal\n\nChoose one useful outcome.", published: false, featured: false, order: 0, imageUrl: "", liveUrl: "", sourceUrl: "", createdAt: topic.createdAt, updatedAt: topic.createdAt };
+  const topics: any[] = []; const jobs: any[] = [];
+  await page.route("**/api/admin/overview", route => route.fulfill({ json: { settings: defaultSettings, content: [], orders: [], inquiries: [], messages: [], reports: [], readiness: {} } }));
+  await page.route("**/api/admin/generation/**", route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/topics")) {
+      if (route.request().method() === "POST") { topics.push(topic); return route.fulfill({ status: 201, json: topic }); }
+      return route.fulfill({ json: { items: topics, nextCursor: null } });
+    }
+    if (path.endsWith("/jobs")) {
+      if (route.request().method() === "POST") { jobs.push({ id: "job-test", sourceKind: "topic", sourceId: topic.id, state: "complete", attempts: 1, error: "", contentId: draft.id, createdAt: topic.createdAt, updatedAt: topic.createdAt }); return route.fulfill({ status: 202, json: { jobs } }); }
+      return route.fulfill({ json: { items: jobs, nextCursor: null } });
+    }
+    return route.fulfill({ json: { items: [], nextCursor: null } });
+  });
+  await page.route(`**/api/admin/content/${draft.id}`, route => route.fulfill({ json: draft }));
+  await signIn(page, true);
+  await page.getByRole("button", { name: "Generation", exact: true }).click();
+  await page.getByLabel("Topic title", { exact: true }).fill(topic.title);
+  await page.getByLabel("Editorial brief", { exact: true }).fill(topic.brief);
+  await page.getByRole("button", { name: "Save topic", exact: true }).click();
+  await page.getByRole("button", { name: "Generate draft", exact: true }).click();
+  await page.getByRole("button", { name: "Review draft", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByLabel("Publish on website")).not.toBeChecked();
+  await page.getByRole("button", { name: "Preview content", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Start with a goal", exact: true })).toBeVisible();
+  expect(draft.published).toBe(false);
+});

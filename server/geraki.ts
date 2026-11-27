@@ -1,4 +1,5 @@
-import { models, services, type BusinessSettings } from "../shared/business";
+import { complete } from "./ai-provider";
+import { services, type BusinessSettings } from "../shared/business";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 export function gerakiInstructions(
@@ -20,65 +21,8 @@ export async function askGeraki(
   settings: BusinessSettings,
   publicReply = false,
 ) {
-  const key = process.env.FEATHERLESS_API_KEY;
-  if (!key)
-    throw Object.assign(
-      new Error(
-        "Geraki is temporarily unavailable. You can still send your brief through Contact.",
-      ),
-      { status: 503 },
-    );
-  // Both model IDs are explicitly pinned. Never substitute another provider or model family.
-  const preferred = publicReply
-    ? [models.secondary, models.primary]
-    : [models.primary, models.secondary];
-  for (const model of preferred) {
-    try {
-      const response = await fetch(
-        "https://api.featherless.ai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${key}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content: gerakiInstructions(settings, publicReply),
-              },
-              ...messages,
-            ],
-            max_tokens: publicReply ? 1200 : 1600,
-            chat_template_kwargs: { enable_thinking: false },
-            temperature: 0.5,
-            stream: false,
-          }),
-          signal: AbortSignal.timeout(22000),
-        },
-      );
-      if (!response.ok) {
-        console.warn("Geraki provider response", model, response.status);
-        continue;
-      }
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (typeof content === "string") {
-        const visible = content
-          .replace(/<think>[\s\S]*?(?:<\/think>|$)/g, "")
-          .trim();
-        if (visible) return { content: visible, model };
-      }
-    } catch {
-      console.warn("Geraki provider timeout or connection failure", model);
-    }
-  }
-  throw Object.assign(
-    new Error(
-      "Geraki could not connect just now. Please retry or use Contact to reach the team.",
-    ),
-    { status: 503 },
-  );
+  return complete([
+    { role: "system", content: gerakiInstructions(settings, publicReply) },
+    ...messages,
+  ], { publicReply });
 }

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -16,7 +16,10 @@
     "test:run": "vitest run",
     "test:e2e": "playwright test",
     "admin:set": "tsx scripts/set-admin.ts",
-    "verify:services": "tsx scripts/verify-services.ts"
+    "verify:services": "tsx scripts/verify-services.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:emulators": "DEBUG= FIREBASE_PROJECT_ID=demo-arthq VITE_FIREBASE_PROJECT_ID=demo-arthq FIREBASE_SERVICE_ACCOUNT_KEY= GOOGLE_APPLICATION_CREDENTIALS= firebase emulators:exec --project demo-arthq --only auth,firestore \"node_modules/.bin/vitest run --config vitest.integration.config.ts\"",
+    "tasks:configure": "tsx scripts/configure-tasks.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "9.3.1",
@@ -24,8 +27,10 @@
     "dotenv": "17.2.0",
     "express": "5.2.1",
     "express-rate-limit": "8.7.1",
+    "fast-xml-parser": "5.12.1",
     "firebase": "12.19.0",
     "firebase-admin": "14.4.0",
+    "google-auth-library": "10.9.1",
     "helmet": "8.1.0",
     "lucide-react": "0.453.0",
     "react": "19.2.5",
@@ -44,10 +49,11 @@
     "@types/supertest": "6.0.3",
     "@vitejs/plugin-react": "4.7.0",
     "esbuild": "0.25.8",
+    "firebase-tools": "15.37.0",
     "supertest": "7.1.4",
     "tsx": "4.21.0",
     "typescript": "5.6.3",
-    "vite": "6.4.4",
+    "vite": "6.4.5",
     "vitest": "4.1.12"
   },
   "pnpm": {
@@ -55,7 +61,11 @@
       "@grpc/grpc-js@<1.13.6": "1.14.6",
       "ip-address@<10.7.1": "10.7.4",
       "uuid@<11.1.1": "11.1.1",
-      "esbuild@>=0.27.3 <0.28.1": "0.28.1"
+      "esbuild@>=0.27.3 <0.28.1": "0.28.1",
+      "rimraf@>=5 <6": "6.1.3",
+      "glob@>=9 <14.0.2": "14.0.2",
+      "minimatch@>=7 <11.0.1": "11.0.1",
+      "@google-cloud/pubsub>@opentelemetry/core": "2.8.0"
     }
   }
 }

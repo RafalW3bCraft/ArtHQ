@@ -7,7 +7,7 @@ import {
   defaultSettings,
   type BusinessSettings,
   type ServicePackage,
-} from "@shared/business";
+} from "@shared/catalog";
 import { GerakiPopup } from "./GerakiChat";
 export type Site = BusinessSettings & {
   checkoutAvailable: boolean;

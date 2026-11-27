@@ -4,7 +4,7 @@ import express, {
   type NextFunction,
 } from "express";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import { adminAuth } from "./firebase-admin";
@@ -36,6 +36,10 @@ import {
   type PaymentStage,
 } from "../shared/business";
 import { showcase } from "../shared/showcase";
+import { generationApi } from "./generation-api";
+import { enqueueGeneration, verifyTaskToken, tasksConfigured } from "./tasks";
+import { runGeneration, type GenerateArticle } from "./generation";
+import { takeQuota } from "./quotas";
 
 type Identity = {
   uid: string;
@@ -52,6 +56,10 @@ type Dependencies = {
   provider?: typeof razorpay;
   storageReady?: () => boolean;
   paymentReady?: () => boolean;
+  enqueue?: typeof enqueueGeneration;
+  taskVerify?: typeof verifyTaskToken;
+  generate?: GenerateArticle;
+  readFeed?: (url: string) => Promise<string>;
 };
 const fail = (status: number, message: string): never => {
   throw Object.assign(new Error(message), { status });
@@ -70,7 +78,10 @@ export function createApplication(dependencies: Dependencies = {}) {
   const paymentReady = dependencies.paymentReady || paymentsConfigured;
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  // Cloud Run appends the verified client hop. Never trust arbitrary forwarded
+  // chains locally; deployments with another proxy must explicitly set its hops.
+  const proxyHops = Number(process.env.TRUST_PROXY_HOPS || (process.env.K_SERVICE ? 1 : 0));
+  app.set("trust proxy", Number.isSafeInteger(proxyHops) && proxyHops >= 0 && proxyHops <= 5 ? proxyHops : 0);
   app.use(
     helmet({
       crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
@@ -113,9 +124,9 @@ export function createApplication(dependencies: Dependencies = {}) {
     }),
   );
   app.get(["/health", "/api/health"], (_req, res) =>
-    res.json({ status: "ok" }),
+    res.json({ status: "ok", revision: process.env.K_REVISION || "local" }),
   );
-  app.get("/readiness", async (_req, res) => {
+  app.get(["/readiness", "/api/readiness"], async (_req, res) => {
     try {
       await store.get("business_settings", "public");
       res.json({ status: "ready" });
@@ -143,9 +154,13 @@ export function createApplication(dependencies: Dependencies = {}) {
         return res.status(400).json({ error: "Invalid event" });
       }
       if (event.event === "payment.captured")
-        await recordPayment(store, event.payload.payment.entity);
+        await recordPayment(store, z.object({
+          id: z.string().regex(/^pay_[a-zA-Z0-9]+$/),
+          order_id: z.string().regex(/^order_[a-zA-Z0-9]+$/),
+          amount: z.number().int().positive(), currency: z.literal("INR"), status: z.literal("captured"),
+        }).parse(event.payload?.payment?.entity));
       if (event.event === "refund.processed") {
-        const refund = event.payload.refund.entity;
+        const refund = z.object({ payment_id: z.string().regex(/^pay_[a-zA-Z0-9]+$/) }).parse(event.payload?.refund?.entity);
         const payment = await provider(
           `payments/${encodeURIComponent(refund.payment_id)}`,
         );
@@ -155,6 +170,12 @@ export function createApplication(dependencies: Dependencies = {}) {
     },
   );
   app.use(express.json({ limit: "128kb" }));
+  app.post("/internal/generation/:id", async (req, res) => {
+    if (!await (dependencies.taskVerify || verifyTaskToken)(req.headers.authorization))
+      return res.status(401).json({ error: "Task identity required." });
+    await runGeneration(store, idSchema.parse(req.params.id), dependencies.generate);
+    res.json({ received: true });
+  });
   app.use("/api", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
     next();
@@ -166,6 +187,7 @@ export function createApplication(dependencies: Dependencies = {}) {
       limit: 120,
       standardHeaders: "draft-7",
       legacyHeaders: false,
+      message: { error: "Too many requests. Please wait a minute and try again." },
     }),
   );
   const chatLimit = rateLimit({
@@ -294,13 +316,19 @@ export function createApplication(dependencies: Dependencies = {}) {
     )
       return fail(400, "Please start a new conversation.");
     res.set("Cache-Control", "no-store");
+    if (storageReady()) {
+      await takeQuota(store, "chat_ip", ipKeyGenerator(req.ip || "unknown"), 12);
+      if (res.locals.identity) await takeQuota(store, "chat_user", identity(res).uid, 12);
+    }
     res.json(await ai(messages, await getSettings()));
   });
-  app.get("/api/orders", authenticated, async (_req, res) =>
-    res.json(
-      await store.list<ProjectOrder>("orders", "clientId", identity(res).uid),
-    ),
-  );
+  app.get("/api/orders", authenticated, async (req, res) => {
+    if (req.get("X-List-Pagination") === "cursor") {
+      const cursor = z.string().max(1500).optional().parse(req.query.cursor);
+      return res.json(await store.page("orders", cursor, { field: "clientId", value: identity(res).uid }));
+    }
+    res.json(await store.list<ProjectOrder>("orders", "clientId", identity(res).uid));
+  });
   app.post("/api/orders", authenticated, writeLimit, async (req, res) => {
     const brief = briefSchema.parse(req.body);
     const settings = await getSettings();
@@ -492,12 +520,26 @@ export function createApplication(dependencies: Dependencies = {}) {
     });
     if (!claimed) return;
     try {
+      const parent = await store.get("messages", message.id);
+      const currentSettings = await getSettings();
+      const post = message.context.startsWith("post:") ? await store.get("content", message.context.slice(5)) : null;
+      if (parent?.status !== "published" || !currentSettings.autoReplies || (message.context === "community" && !currentSettings.communityEnabled) || (message.context.startsWith("post:") && !post?.published)) {
+        await store.put("reply_jobs", replyId, { id: replyId, state: "cancelled", updatedAt: time() });
+        return;
+      }
+      await takeQuota(store, "public_reply", message.authorId, 12);
       const reply = await ai(
         [{ role: "user", content: message.content }],
         settings,
         true,
       );
-      await store.put("messages", replyId, {
+      const latest = await store.get("messages", message.id);
+      const latestPost = post ? await store.get("content", post.id) : null;
+      if (latest?.status !== "published" || (post && !latestPost?.published)) {
+        await store.put("reply_jobs", replyId, { id: replyId, state: "cancelled", updatedAt: time() });
+        return;
+      }
+      await store.change("messages", replyId, current => current || ({
         id: replyId,
         context: message.context,
         content: reply.content,
@@ -507,7 +549,7 @@ export function createApplication(dependencies: Dependencies = {}) {
         status: "published",
         parentId: message.id,
         createdAt: time(),
-      });
+      }));
       await store.put("reply_jobs", replyId, {
         id: replyId,
         state: "complete",
@@ -530,15 +572,20 @@ export function createApplication(dependencies: Dependencies = {}) {
       if (!post?.published) return fail(404, "Post not found");
     }
     const messages = await store.list("messages", "context", context);
-    res.json(
-      messages
+    const visible = messages
         .filter(
           (m) =>
-            m.status === "published" || m.authorId === res.locals.identity?.uid,
+            (m.status === "published" || m.authorId === res.locals.identity?.uid) &&
+            (!m.parentId || messages.some(parent => parent.id === m.parentId && parent.status === "published")),
         )
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .slice(-100),
-    );
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    if (req.get("X-List-Pagination") === "cursor") {
+      const cursor = idSchema.optional().parse(req.query.cursor);
+      const index = cursor ? visible.findIndex(m => m.id === cursor) : -1;
+      if (cursor && index < 0) return fail(409, "The conversation changed. Refresh to continue.");
+      const page = visible.slice(index + 1, index + 102);
+      res.json({ items: page.slice(0, 100), nextCursor: page.length > 100 ? page[99].id : null });
+    } else res.json(visible.slice(0, 100).reverse());
   });
   app.post("/api/messages", authenticated, writeLimit, async (req, res) => {
     const data = publicMessageSchema.parse(req.body);
@@ -590,7 +637,17 @@ export function createApplication(dependencies: Dependencies = {}) {
   );
 
   app.use("/api/admin", admin);
-  app.get("/api/admin/overview", async (_req, res) => {
+  app.use("/api/admin/generation", generationApi(store, dependencies.enqueue || enqueueGeneration, dependencies.readFeed));
+  const adminCollections = z.enum(["content", "orders", "inquiries", "messages", "reports"]);
+  app.get("/api/admin/collections/:collection", async (req, res) => {
+    res.json(await store.page(adminCollections.parse(req.params.collection), z.string().max(1500).optional().parse(req.query.cursor)));
+  });
+  app.get("/api/admin/content/:id", async (req, res) => {
+    const content = await store.get("content", idSchema.parse(req.params.id));
+    if (!content) return fail(404, "Content not found");
+    res.json(content);
+  });
+  app.get("/api/admin/overview", async (req, res) => {
     const [settings, content, orders, inquiries, messages, reports] =
       await Promise.all([
         getSettings(),
@@ -600,6 +657,9 @@ export function createApplication(dependencies: Dependencies = {}) {
         store.list("messages"),
         store.list("reports"),
       ]);
+    const all = { content, orders, inquiries, messages, reports };
+    const paged = req.get("X-List-Pagination") === "cursor";
+    const pages: Record<string, { items: RecordData[]; nextCursor: string | null }> | null = paged ? Object.fromEntries(await Promise.all(Object.keys(all).map(async collection => [collection, await store.page(collection)]))) : null;
     res.json({
       settings,
       content,
@@ -607,12 +667,18 @@ export function createApplication(dependencies: Dependencies = {}) {
       inquiries,
       messages,
       reports,
+      ...(pages ? {
+        ...Object.fromEntries(Object.entries(pages).map(([key, page]) => [key, page.items])),
+        nextCursors: Object.fromEntries(Object.entries(pages).map(([key, page]) => [key, page.nextCursor])),
+        counts: { orders: orders.length, inquiries: inquiries.filter(i => i.status === "new").length, content: content.filter(c => c.published).length, reports: reports.filter(r => r.status === "open").length },
+      } : {}),
       readiness: {
         storage: storageReady(),
         featherless: !!process.env.FEATHERLESS_API_KEY,
         razorpay: paymentReady(),
         policies: canPay(settings),
         packages: settings.packages.some((p) => p.published),
+        generation: tasksConfigured(),
       },
     });
   });
@@ -911,6 +977,8 @@ export function createApplication(dependencies: Dependencies = {}) {
   );
   app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
     if (res.headersSent) return;
+    if (error.type === "entity.parse.failed") return res.status(400).json({ error: "Request body must be valid JSON." });
+    if (error.type === "entity.too.large") return res.status(413).json({ error: "Request body is too large." });
     if (error instanceof z.ZodError)
       return res.status(400).json({
         error: error.issues

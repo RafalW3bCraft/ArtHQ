@@ -1,0 +1,39 @@
+name: Verify ArtHQ
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check && pnpm test:run && pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: pnpm test:emulators
+      - run: pnpm audit --audit-level=high
+      - name: Build and exercise production runtime
+        run: |
+          docker build -t arthq-runtime:ci .
+          docker run --rm arthq-runtime:ci scripts/smoke-image.mjs
+      - name: Scan production image
+        run: |
+          curl -fsSL --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz -o /tmp/trivy.tgz
+          echo 'bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  /tmp/trivy.tgz' | sha256sum --check --strict
+          tar -xzf /tmp/trivy.tgz -C /tmp trivy
+          /tmp/trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 arthq-runtime:ci
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verification-artifacts
+          path: test-results/

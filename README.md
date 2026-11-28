@@ -10,7 +10,7 @@ not use PostgreSQL or the repository polling jobs removed by the studio redesign
 
 ## Local setup
 
-Use Node 22 (`nvm use`) and the pinned pnpm version:
+Use Node 22.23.5 (`nvm use`) and the pinned pnpm version:
 
 ```sh
 corepack enable
@@ -71,6 +71,9 @@ pnpm test:e2e
 pnpm audit --audit-level=high
 pnpm verify:services --require-ai
 SITE_URL=https://arthq-tech.web.app pnpm verify:services --site-only
+SITE_URL=https://arthq-tech.web.app pnpm verify:services --site-only --require-google
+docker build -t arthq-runtime:local .
+docker run --rm arthq-runtime:local scripts/smoke-image.mjs
 ```
 
 The base service check verifies Firestore, Authentication, and required web
@@ -80,6 +83,11 @@ Razorpay settings; it does not verify payment capture. `SITE_URL` checks that th
 deployed API returns successful JSON, detecting frontend HTML served at API URLs.
 Failures exit nonzero. Unit/API tests mock external services; browser tests mock
 identity and application APIs. No standalone lint task is configured.
+
+CI also scans the production container with a pinned, checksum-verified Trivy
+release and rejects high/critical findings. Runtime image digests are pinned in
+the Dockerfile; update them with a fresh vulnerability scan and runtime smoke
+check. The container runs without a shell or package manager as UID 65532.
 
 ## Deployment
 

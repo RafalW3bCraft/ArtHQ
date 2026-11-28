@@ -40,6 +40,12 @@ Operational list APIs support the `X-List-Pagination: cursor` header and return 
 - Query requests did not consume cancellation signals. Identity-related cache removal can now abort requests.
 - Runtime validation schemas unnecessarily entered the client bundle. Public catalog data is separated from server validation, and React DOM is placed in its own bundle.
 - Dependency advisories were repaired with a patched XML parser and compatible transitive overrides; production audit is required again on dependency updates.
+- Article generation originally accepted the first nonempty provider response before checking its JSON/field/markup validity, so unusable content consumed whole job attempts. Article-specific validation and truncated-output detection now allow the other approved model within the same attempt; bounded background timeouts and safe stage diagnostics support recovery.
+- The original production image carried vulnerable OS utilities and bundled npm packages even though the application's dependency audit passed. A pinned, non-root minimal runtime removes those unused components, preserves dependency inventory, passes startup/TLS checks and has zero high/critical scanner findings. CI now checks the actual container; lower-severity findings remain recorded separately.
+
+## Additional deployed evidence
+
+The owner-selected administrator claim was verified through real API and browser sessions. Three topic jobs created private drafts that were reviewed and published; all three public detail routes and search passed mobile/desktop checks. Manual W3C feed polling imported 20 candidates and generated an attributed private draft on the repaired backend. A real duplicate worker delivery preserved the reviewed publication. Google provider configuration and popup opening pass; completed Google account sign-in remains an owner acceptance step. See [verification](verification.md) for release identifiers and remaining payment dependencies.
 
 ## Evidence limits
 
